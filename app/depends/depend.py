@@ -6,10 +6,9 @@ from enum import Enum
 from functools import lru_cache
 from pathlib import Path
 
-from config import BASE_PATH
+from config import BASE_PATH, DATABASE_URI
 
 class Item(Enum):
-    """Item categories."""
 
     ADDRESSES = "addresses"
     AFFILATIONS = "affilations"
@@ -27,7 +26,6 @@ class Item(Enum):
 
 @lru_cache
 def get_user_id(cur: sqlite3.Cursor) -> int | None:
-    """Retrieve the current user."""
     username = getpass.getuser()
     user = cur.execute(
         "SELECT id FROM users WHERE username = ?",
@@ -37,7 +35,6 @@ def get_user_id(cur: sqlite3.Cursor) -> int | None:
 
 
 def create_dest(person: dict) -> str:
-    """Create destination."""
     destination = Path(
         BASE_PATH,
         "Главный офис",
@@ -54,16 +51,20 @@ def create_dest(person: dict) -> str:
 
 
 def make_dicts(cursor: sqlite3.Cursor, row: sqlite3.Row) -> dict:
-    """Convert SQL row to dictionary."""
     return {cursor.description[idx][0]: value for idx, value in enumerate(row)}
 
 
-def create_query(query: dict) -> tuple:
-    """Create statement with params query."""
+def get_db() -> sqlite3.Connection:
+    db = sqlite3.connect(DATABASE_URI)
+    db.row_factory = make_dicts
+    return db
+
+
+def create_query(query: str|None) -> tuple:
     params = []
     stmt = "SELECT id, surname, firstname, patronymic, birthday, created FROM persons"
-    if query.get("search"):
-        search = query["search"].upper().split(maxsplit=3)
+    if query:
+        search = query.upper().split(maxsplit=3)
         stmt += " WHERE surname = ?"
         params.append(search[0])
         if len(search) > 1:

@@ -7,35 +7,23 @@ from app.depends.depend import (
     Item,
     create_dest,
     create_query,
+    get_db,
     get_user_id,
-    make_dicts,
 )
-from config import DATABASE_URI
 
 route = SubRouter(__file__, prefix="/routes")
 
 
-@route.before_request()
-async def _load_connection() -> None:
-    db = sqlite3.connect(DATABASE_URI)
-    db.row_factory = make_dicts
-    route.inject(db=db)
-
-
 @route.get("/candidates/:page")
-async def get_candidates(request: Request, db: sqlite3.Connection):
-    """Retrieve a paginated list of persons from the database."""
+async def get_candidates(request: Request):
     page = request.path_params.get("page", 0)
-    per_page = request.path_params.get("per_page", 10)
-    query = request.query_params.to_dict()
+    query = request.query_params.get("search", None)
     stmt, params = create_query(query)
-    # Пагинация списка кандидатов
-    with db as conn:
+
+    with get_db() as conn:
         cur: sqlite3.Cursor = conn.cursor()
-        candidates = cur.execute(
-            stmt, (*params, int(per_page) + 1, int(page) * int(per_page))
-        ).fetchall()
-        has_next = len(candidates) > int(per_page)
+        candidates = cur.execute(stmt, (*params, 11, int(page) * 10)).fetchall()
+        has_next = len(candidates) > 10
         return {
             "has_next": has_next,
             "candidates": candidates[:-1] if has_next else candidates,
@@ -43,10 +31,9 @@ async def get_candidates(request: Request, db: sqlite3.Connection):
 
 
 @route.get("/persons/:person_id")
-async def get_person(request: Request, db: sqlite3.Connection):
-    """Retrieve an item from the database based on the provided item ID."""
+async def get_person(request: Request):
     person_id = request.path_params.get("person_id")
-    with db as conn:
+    with get_db() as conn:
         cur: sqlite3.Cursor = conn.cursor()
         return cur.execute(
             "SELECT * FROM persons WHERE id = ?", (person_id,)
@@ -54,10 +41,8 @@ async def get_person(request: Request, db: sqlite3.Connection):
 
 
 @route.post("/persons")
-async def post_person(request: Request, db: sqlite3.Connection):
-    """Replace a record in persons table."""
-    # Загружаем резюме, получаем id кандидата, а также был ли он ранее загружен
-    with db as conn:
+async def post_person(request: Request):
+    with get_db() as conn:
         cur: sqlite3.Cursor = conn.cursor()
         user_id = get_user_id(cur)
         resume: dict = request.json()
@@ -105,10 +90,9 @@ async def post_person(request: Request, db: sqlite3.Connection):
 
 
 @route.delete("/persons/:person_id")
-async def delete_person(request: Request, db: sqlite3.Connection):
-    """Delete person from the database based on ID."""
+async def delete_person(request: Request):
     person_id = request.path_params.get("person_id")
-    with db as conn:
+    with get_db() as conn:
         cur: sqlite3.Cursor = conn.cursor()
         for table in Item:
             cur.execute(
@@ -120,12 +104,11 @@ async def delete_person(request: Request, db: sqlite3.Connection):
         return "", 204
 
 
-@route.get("/<item>/<int:person_id>")
-async def get_item(request: Request, db: sqlite3.Connection):
-    """Get an item based on the provided item."""
+@route.get("/:item/:person_id")
+async def get_item(request: Request):
     item = request.path_params.get("item")
     person_id = request.path_params.get("person_id")
-    with db as conn:
+    with get_db() as conn:
         cur: sqlite3.Cursor = conn.cursor()
         return cur.execute(
             f"SELECT * FROM {item} WHERE person_id = ?",  # noqa: S608
@@ -134,25 +117,22 @@ async def get_item(request: Request, db: sqlite3.Connection):
 
 
 @route.post("/:item/:person_id")
-async def post_item(request: Request, db: sqlite3.Connection):
+async def post_item(request: Request):
     """Insert or replaces a record in the specified table."""
     item = request.path_params.get("item")
     person_id = request.path_params.get("person_id")
     json_dict: dict = request.json()
     json_dict.update({"person_id": person_id, "created": datetime.now().isoformat()})
 
-    # Проверяем, есть ли ключ "id" в словаре json_dict
-    with db as conn:
+    with get_db() as conn:
         cur: sqlite3.Cursor = conn.cursor()
         if item_id := json_dict.pop("id", None):
-            # Если есть, создаем запрос на обновление записи с указанным id
             stmt = "UPDATE {} SET {} WHERE id = ?".format(  # noqa: S608
                 item,
                 ",".join(f"{k}=?" for k in json_dict),
             )
             cur.execute(stmt, (*json_dict.values(), item_id))
         else:
-            # Если нет, создаем запрос на вставку новой записи
             stmt = "INSERT INTO {} ({}) VALUES ({})".format(  # noqa: S608
                 item,
                 ",".join(json_dict.keys()),
@@ -163,12 +143,11 @@ async def post_item(request: Request, db: sqlite3.Connection):
         return "", 201
 
 
-@route.delete("/:item>/:item_id")
-async def delete_item(request: Request, db: sqlite3.Connection):
-    """Delete an item from the database with provided item name and item ID."""
+@route.delete("/:item/:item_id")
+async def delete_item(request: Request):
     item = request.path_params.get("item")
     item_id = request.path_params.get("item_id")
-    with db as conn:
+    with get_db() as conn:
         cur: sqlite3.Cursor = conn.cursor()
         cur.execute(
             f"DELETE FROM {item} WHERE id = ?",  # noqa: S608
