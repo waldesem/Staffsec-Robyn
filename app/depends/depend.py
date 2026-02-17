@@ -55,23 +55,6 @@ def make_dicts(cursor: sqlite3.Cursor, row: sqlite3.Row) -> dict:
 
 
 def get_db() -> sqlite3.Connection:
-    db = sqlite3.connect(DATABASE_URI)
+    db = sqlite3.connect(DATABASE_URI, check_same_thread=False)
     db.row_factory = make_dicts
     return db
-
-
-def create_query(query: str|None) -> tuple:
-    params = []
-    stmt = "SELECT id, surname, firstname, patronymic, birthday, created FROM persons"
-    if query:
-        search = query.upper().split(maxsplit=3)
-        stmt += " WHERE surname = ?"
-        params.append(search[0])
-        if len(search) > 1:
-            stmt += " AND firstname = ?"
-            params.append(search[1])
-            if len(search) > 2:
-                stmt += " AND patronymic = ?"
-                params.append(search[2])
-    stmt += " ORDER BY id DESC LIMIT ? OFFSET ?"
-    return stmt, params

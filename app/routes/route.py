@@ -6,7 +6,6 @@ from robyn import SubRouter, Request
 from app.depends.depend import (
     Item,
     create_dest,
-    create_query,
     get_db,
     get_user_id,
 )
@@ -18,7 +17,19 @@ route = SubRouter(__file__, prefix="/routes")
 async def get_candidates(request: Request):
     page = request.path_params.get("page", 0)
     query = request.query_params.get("search", None)
-    stmt, params = create_query(query)
+    params = []
+    stmt = "SELECT id, surname, firstname, patronymic, birthday, created FROM persons"
+    if query:
+        search = query.upper().split(maxsplit=3)
+        stmt += " WHERE surname = ?"
+        params.append(search[0])
+        if len(search) > 1:
+            stmt += " AND firstname = ?"
+            params.append(search[1])
+            if len(search) > 2:
+                stmt += " AND patronymic = ?"
+                params.append(search[2])
+    stmt += " ORDER BY id DESC LIMIT ? OFFSET ?"
 
     with get_db() as conn:
         cur: sqlite3.Cursor = conn.cursor()
