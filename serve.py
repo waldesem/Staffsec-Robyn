@@ -31,7 +31,7 @@ def serve(host: str, port: int, mode: str) -> None:
 
     Example usage:
         For server:
-            uv run serve.py --host 127.0.0.1 --port 5000 --mode server
+            uv run serve.py --host 127.0.0.1 --port 5000 --mode=server
         For desktop:
             uv run serve.py
     """

@@ -1,15 +1,18 @@
 """Utils module."""
+from types import AsyncGeneratorType
 
 import getpass
-import sqlite3
+from contextlib import asynccontextmanager
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
 
+import aiosqlite
+
 from config import BASE_PATH, DATABASE_URI
 
-class Item(Enum):
 
+class Item(Enum):
     ADDRESSES = "addresses"
     AFFILATIONS = "affilations"
     CHECKS = "checks"
@@ -25,12 +28,13 @@ class Item(Enum):
 
 
 @lru_cache
-def get_user_id(cur: sqlite3.Cursor) -> int | None:
+async def get_user_id(cur: aiosqlite.Cursor) -> int | None:
     username = getpass.getuser()
-    user = cur.execute(
+    result = await cur.execute(
         "SELECT id FROM users WHERE username = ?",
         (username.lower(),),
-    ).fetchone()
+    )
+    user = await result.fetchone()
     return user["id"] if user else None
 
 
@@ -46,15 +50,14 @@ def create_dest(person: dict) -> str:
             person.get("patronymic", ""),
         ).rstrip(),
     )
-    destination.mkdir(parents=True, exist_ok=True)
     return str(destination)
 
 
-def make_dicts(cursor: sqlite3.Cursor, row: sqlite3.Row) -> dict:
-    return {cursor.description[idx][0]: value for idx, value in enumerate(row)}
-
-
-def get_db() -> sqlite3.Connection:
-    db = sqlite3.connect(DATABASE_URI, check_same_thread=False)
-    db.row_factory = make_dicts
-    return db
+@asynccontextmanager
+async def get_db() -> AsyncGeneratorType[aiosqlite.Connection]:
+    db = await aiosqlite.connect(DATABASE_URI)
+    db.row_factory = aiosqlite.Row
+    try:
+        yield db
+    finally:
+        pass 
