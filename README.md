@@ -1,4 +1,4 @@
-# StaffSec Desktop
+# StaffSec
 
 Experimental desktop webapp for managing local database.
 
@@ -38,5 +38,5 @@ DEFAULT_PASSWORD for created user is `88888888`.
 To start desktop app run the command in terminal:
 
 ```
-uv run serve.py
+uv run app.py
 ```

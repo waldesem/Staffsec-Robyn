@@ -1,9 +1,9 @@
 import asyncio
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
-from robyn import SubRouter, Request, Response
+from robyn import Request, Response, SubRouter
 
-from app.depends.depend import (
+from depends.depend import (
     Item,
     create_dest,
     get_db,
@@ -47,7 +47,7 @@ async def get_person(path_params: dict[str, str]):
     async with get_db() as conn:
         cur = await conn.cursor()
         result = await cur.execute(
-            "SELECT * FROM persons WHERE id = ?", (path_params.get("person_id"),)
+            "SELECT * FROM persons WHERE id = ?", (path_params.get("person_id"),),
         )
         return dict(await result.fetchone())
 
@@ -57,7 +57,7 @@ async def post_person(request: Request):
     async with get_db() as conn:
         cur = await conn.cursor()
         user_id = get_user_id(cur)
-        resume: dict = request.json()
+        resume = request.json()
         resume["user_id"] = user_id
 
         if not (cand_id := resume.pop("id", None)):
@@ -115,7 +115,7 @@ async def delete_person(path_params: dict[str, str]):
                     (person_id,),
                 )
                 for table in Item
-            ]
+            ],
         )
         await cur.execute("DELETE FROM persons WHERE id = ?", (person_id,))
         await conn.commit()

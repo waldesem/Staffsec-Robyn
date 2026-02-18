@@ -6,6 +6,8 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "aiosqlite>=0.22.1",
-    "click>=8.3.1",
     "robyn>=0.78.0",
 ]
+[tool.ruff]
+select = ["ALL"]
+ignore = ["D100", "D103", "ANN201"]

@@ -1,15 +1,16 @@
-"""Utils module."""
-from types import AsyncGeneratorType
-
 import getpass
 from contextlib import asynccontextmanager
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import aiosqlite
 
 from config import BASE_PATH, DATABASE_URI
+
+if TYPE_CHECKING:
+    from types import AsyncGeneratorType
 
 
 class Item(Enum):
@@ -60,4 +61,4 @@ async def get_db() -> AsyncGeneratorType[aiosqlite.Connection]:
     try:
         yield db
     finally:
-        pass 
+        pass
