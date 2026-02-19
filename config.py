@@ -19,3 +19,4 @@ BASE_PATH = (
     .joinpath("Persons")
 )
 DATABASE_URI = BASE_PATH.joinpath("database.db")
+PAGINATION = 10

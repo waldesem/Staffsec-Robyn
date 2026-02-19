@@ -2,7 +2,7 @@ from pathlib import Path
 
 from robyn import Response, Robyn
 
-from routes.route import route
+from routes import route
 
 app = Robyn(__file__)
 app.include_router(route)

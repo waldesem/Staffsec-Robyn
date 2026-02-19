@@ -3,12 +3,8 @@ from datetime import UTC, datetime
 
 from robyn import Request, Response, SubRouter
 
-from depends.depend import (
-    Item,
-    create_dest,
-    get_db,
-    get_user_id,
-)
+from config import PAGINATION
+from depends import Item, create_dest, get_db, get_user_id
 
 route = SubRouter(__file__, prefix="/routes")
 
@@ -33,9 +29,11 @@ async def get_candidates(request: Request):
 
     async with get_db() as conn:
         cur = await conn.cursor()
-        result = await cur.execute(stmt, (*params, 11, int(page) * 10))
+        result = await cur.execute(
+            stmt, (*params, PAGINATION + 1, int(page) * PAGINATION),
+        )
         candidates = [dict(cand) for cand in await result.fetchall()]
-        has_next = len(candidates) > 10
+        has_next = len(candidates) > PAGINATION
         return {
             "has_next": has_next,
             "candidates": candidates[:-1] if has_next else candidates,
@@ -47,7 +45,8 @@ async def get_person(path_params: dict[str, str]):
     async with get_db() as conn:
         cur = await conn.cursor()
         result = await cur.execute(
-            "SELECT * FROM persons WHERE id = ?", (path_params.get("person_id"),),
+            "SELECT * FROM persons WHERE id = ?",
+            (path_params.get("person_id"),),
         )
         return dict(await result.fetchone())
 
